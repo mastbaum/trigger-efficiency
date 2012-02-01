@@ -37,7 +37,7 @@ def load(filename,
 
     return data
 
-def make_efficiency_curve(data):
+def make_efficiency_curve(data, plot_overlay=False):
     '''Scans through data (numpy.array, shape=(n,3)) to generate an efficiency
     curve, i.e. a projection of the trigger turn-on profile. Returns a tuple of
     (means for each nchannel, standard deviations for nchannel)
@@ -48,6 +48,18 @@ def make_efficiency_curve(data):
 
     means = np.average(eff, axis=0)
     stds = np.std(eff, axis=0)
+
+    if plot_overlay:
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        x = np.arange(len(eff[0]))
+        for g in eff:
+            ax.plot(x, g)
+
+        ax.set_xlim(min(x)-1, max(x)+1)
+        ax.set_xlabel('Channels enabled')
+        ax.set_ylabel('Trigger efficiency')
+        plt.show()
 
     return means, stds
 
@@ -65,5 +77,5 @@ if __name__ == '__main__':
 
     data = load(sys.argv[1], xfilt=xf, zfilt=zf)
 
-    plot_efficiency(*make_efficiency_curve(data))
+    plot_efficiency(*make_efficiency_curve(data, plot_overlay=True))
 

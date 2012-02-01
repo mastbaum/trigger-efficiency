@@ -21,10 +21,14 @@ def plot_trigscan(data):
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
-        print 'Usage:', sys.argv[0], '[trigger scan file]'
+        print 'Usage:', sys.argv[0], '<trigger scan file> [start_nhit end_nhit]'
         sys.exit(1)
 
-    xfilt = lambda x: True # x < 600 and x > 200
+    if len(sys.argv) == 4:
+        xf = lambda x: x > float(sys.argv[2]) and x < float(sys.argv[3])
+    else:
+        xf = lambda x: True
+
     zfilt = lambda x: x < 1.0e6
 
     data = efficiency.load(sys.argv[1], xfilt=xfilt, zfilt=zfilt)
