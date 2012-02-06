@@ -2,8 +2,6 @@ import sys
 import itertools as it
 import numpy as np
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-import scipy
 import scipy.optimize
 
 import tools
@@ -39,10 +37,9 @@ def make_nhit_vs_adc(data, plot_fits=False):
     '''finds the nhit-per-adc function for the data set, using the offset of a
     fit logistic curve.
     '''
+    # fit function and residuals
     logistic = lambda v,x: 1.0  / (1.0 + np.exp(-v[0]*(x-v[1])))
     e = lambda v,x,y: ((logistic(v,x)-y)**2).sum()
-
-    data.view('i8,i8,f8').sort(order=['f0','f1'], axis=0)
 
     groups = {}
     for k, g in it.groupby(data, lambda x: x[0]):
@@ -88,9 +85,6 @@ if __name__ == '__main__':
 
     data = tools.load(sys.argv[1], xfilt=xf, zfilt=zf)
 
-    d = make_nhit_vs_adc(data, False)
-    print d
-    linear_fit_plot(*d)
+    linear_fit_plot(*make_nhit_vs_adc(data))
 
-    #plot(*make_nhit_vs_adc(data))
 
