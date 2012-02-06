@@ -3,6 +3,8 @@ import itertools as it
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+import scipy
+import scipy.optimize
 
 import tools
 
@@ -20,17 +22,40 @@ def plot_efficiency(means, stds):
 
     plt.show()
 
-def make_efficiency_curve(data, plot_overlay=False):
-    '''Scans through data (numpy.array, shape=(n,3)) to generate an efficiency
-    curve, i.e. a projection of the trigger turn-on profile. Returns a tuple of
-    (means for each nchannel, standard deviations for nchannel)
+def make_nhit_vs_adc(data, plot_overlay=False):
+    '''finds the nhit-per-adc function for the data set, using the offset of a
+    fit logistic curve.
     '''
-    data.view('i8,i8,f8').sort(order=['f0','f1'], axis=0)
-    groups = [[a[-1] for a in g] for k,g in it.groupby(data, lambda x: x[0])]
-    eff = np.array([g[-min(map(len, groups)):] for g in groups])
+    def logistic(x, a, b):
+        return 1.0 / (1.0 + np.exp(-a*(x-b)))
 
-    means = np.average(eff, axis=0)
-    stds = np.std(eff, axis=0)
+    data.view('i8,i8,f8').sort(order=['f0','f1'], axis=0)
+
+    groups = {}
+    for k, g in it.groupby(data, lambda x: x[0]):
+        groups[k] = zip(*[(a[1], a[2]) for a in g])
+
+    a = {}
+    for group in groups:
+        x, y = groups[group]
+
+        maxy = max(y)
+        if not maxy > 0.999 and maxy < 1.001:
+            continue
+
+        try:
+            popt, pcov = scipy.optimize.curve_fit(logistic, x, y)
+            a[group] = popt
+        except RuntimeError:
+            a[group] = [0,0]
+
+    for i in a:
+        print i, a[i]
+
+    #eff = np.array([g[-min(map(len, groups)):] for g in groups])
+
+    #means = np.average(eff, axis=0)
+    #stds = np.std(eff, axis=0)
 
     if plot_overlay:
         fig = plt.figure()
@@ -44,7 +69,7 @@ def make_efficiency_curve(data, plot_overlay=False):
         ax.set_ylabel('Trigger efficiency')
         plt.show()
 
-    return means, stds
+    #return means, stds
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
@@ -60,5 +85,7 @@ if __name__ == '__main__':
 
     data = tools.load(sys.argv[1], xfilt=xf, zfilt=zf)
 
-    plot_efficiency(*make_efficiency_curve(data, plot_overlay=True))
+    make_nhit_vs_adc(data)
+
+    #plot(*make_nhit_vs_adc(data))
 

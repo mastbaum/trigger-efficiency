@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
-import efficiency
+import tools
 
 def plot_trigscan(data):
     '''Plot a trigger scan data set in 3D. `data` is a numpy.array with
@@ -25,13 +25,16 @@ if __name__ == '__main__':
         sys.exit(1)
 
     if len(sys.argv) == 4:
-        xf = lambda x: x > float(sys.argv[2]) and x < float(sys.argv[3])
+        xfilt = lambda x: x > float(sys.argv[2]) and x < float(sys.argv[3])
     else:
-        xf = lambda x: True
+        xfilt = lambda x: True
 
-    zfilt = lambda x: x < 1.0e6
+    zfilt = lambda x: x < 1.0e6 and x > 0
 
-    data = efficiency.load(sys.argv[1], xfilt=xfilt, zfilt=zfilt)
+    data = tools.load(sys.argv[1], xfilt=xfilt, zfilt=zfilt)
 
+    print data
     plot_trigscan(data)
+
+    raw_input()
 
