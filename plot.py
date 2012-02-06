@@ -36,5 +36,3 @@ if __name__ == '__main__':
     print data
     plot_trigscan(data)
 
-    raw_input()
-

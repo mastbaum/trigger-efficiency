@@ -8,26 +8,39 @@ import scipy.optimize
 
 import tools
 
-def plot_efficiency(means, stds):
+def linear_fit_plot(x, y):
+    x = np.array(x)
+    y = np.array(y)
+
+    line = lambda v, x: v[0] * x + v[1]
+    e = lambda v, x, y: ((line(v, x) - y)**2).sum()
+
+    vopt = scipy.optimize.fmin(e, (1,1), args=(x,y))
+    yfit = line(vopt, x)
+
+    x = 4096 - x
     fig = plt.figure()
     ax = fig.add_subplot(111)
 
-    x = np.arange(len(means))
+    plot_data = ax.plot(x, y)
+    plot_fit = ax.plot(x, yfit)
 
-    ax.errorbar(x, means, yerr=stds)
+    ax.legend([plot_data, plot_fit], ['Data', 'Linear Fit'])
+    ax.set_xlim(max(x)+1, min(x)-1)
+    ax.set_xlabel('ADC')
+    ax.set_ylabel('NHIT')
 
-    ax.set_xlim(min(x)-1, max(x)+1)
-    ax.set_xlabel('Channels enabled')
-    ax.set_ylabel('Trigger efficiency')
+    print 'Best fit: v =', vopt
+    print 'ADC = 4096 - ( ( NHIT -', vopt[1], ') /', vopt[0] ,')'
 
     plt.show()
 
-def make_nhit_vs_adc(data, plot_overlay=False):
+def make_nhit_vs_adc(data, plot_fits=False):
     '''finds the nhit-per-adc function for the data set, using the offset of a
     fit logistic curve.
     '''
-    def logistic(x, a, b):
-        return 1.0 / (1.0 + np.exp(-a*(x-b)))
+    logistic = lambda v,x: 1.0  / (1.0 + np.exp(-v[0]*(x-v[1])))
+    e = lambda v,x,y: ((logistic(v,x)-y)**2).sum()
 
     data.view('i8,i8,f8').sort(order=['f0','f1'], axis=0)
 
@@ -35,7 +48,7 @@ def make_nhit_vs_adc(data, plot_overlay=False):
     for k, g in it.groupby(data, lambda x: x[0]):
         groups[k] = zip(*[(a[1], a[2]) for a in g])
 
-    a = {}
+    offsets = {}
     for group in groups:
         x, y = groups[group]
 
@@ -44,32 +57,22 @@ def make_nhit_vs_adc(data, plot_overlay=False):
             continue
 
         try:
-            popt, pcov = scipy.optimize.curve_fit(logistic, x, y)
-            a[group] = popt
+            v0 = [1.0, min(x)]
+            popt = scipy.optimize.fmin(e, v0, args=(x, y), maxiter=500, maxfun=500)
+            offsets[group] = popt[1]
+
+            if plot_fits:
+                fig = plt.figure()
+                ax = fig.add_subplot(111)
+                xx = np.arange(min(x), max(x))
+                yy = logistic(popt, xx)
+                ax.plot(x, y, xx, yy)
+                plt.show()
+            
         except RuntimeError:
-            a[group] = [0,0]
+            offsets[group] = [0]
 
-    for i in a:
-        print i, a[i]
-
-    #eff = np.array([g[-min(map(len, groups)):] for g in groups])
-
-    #means = np.average(eff, axis=0)
-    #stds = np.std(eff, axis=0)
-
-    if plot_overlay:
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
-        x = np.arange(len(eff[0]))
-        for g in eff:
-            ax.plot(x, g)
-
-        ax.set_xlim(min(x)-1, max(x)+1)
-        ax.set_xlabel('Channels enabled')
-        ax.set_ylabel('Trigger efficiency')
-        plt.show()
-
-    #return means, stds
+    return zip(*sorted(offsets.iteritems()))
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
@@ -85,7 +88,9 @@ if __name__ == '__main__':
 
     data = tools.load(sys.argv[1], xfilt=xf, zfilt=zf)
 
-    make_nhit_vs_adc(data)
+    d = make_nhit_vs_adc(data, False)
+    print d
+    linear_fit_plot(*d)
 
     #plot(*make_nhit_vs_adc(data))
 
